@@ -8,7 +8,7 @@ SSH_ENABLED=$(jq --raw-output ".ssh_enabled" $CONFIG_PATH)
 SSH_HOST=$(jq --raw-output ".ssh_host" $CONFIG_PATH)
 SSH_PORT=$(jq --raw-output ".ssh_port" $CONFIG_PATH)
 SSH_USER=$(jq --raw-output ".ssh_user" $CONFIG_PATH)
-SSH_KEY=$(jq --raw-output ".ssh_key[]" $CONFIG_PATH)
+SSH_KEY=$(jq --raw-output ".ssh_key" $CONFIG_PATH)
 REMOTE_DIRECTORY=$(jq --raw-output ".remote_directory" $CONFIG_PATH)
 ZIP_PASSWORD=$(jq --raw-output '.zip_password' $CONFIG_PATH)
 KEEP_LOCAL_BACKUP=$(jq --raw-output '.keep_local_backup' $CONFIG_PATH)
@@ -22,28 +22,6 @@ RSYNC_PASSWORD=$(jq --raw-output ".rsync_password" $CONFIG_PATH)
 # create variables
 SSH_ID="${HOME}/.ssh/id"
 
-function add-ssh-key {
-
-    if [ "$SSH_ENABLED" = true ] ; then
-        echo "Adding SSH key"
-        mkdir -p ~/.ssh
-        (
-            echo "Host remote"
-            echo "    IdentityFile ${HOME}/.ssh/id"
-            echo "    HostName ${SSH_HOST}"
-            echo "    User ${SSH_USER}"
-            echo "    Port ${SSH_PORT}"
-            echo "    StrictHostKeyChecking no"
-        ) > "${HOME}/.ssh/config"
-
-        while read -r line; do
-            echo "$line" >> ${HOME}/.ssh/id
-        done <<< "$SSH_KEY"
-
-        chmod 600 "${HOME}/.ssh/config"
-        chmod 600 "${HOME}/.ssh/id"
-    fi    
-}
 
 function copy-backup-to-remote {
 
@@ -51,11 +29,11 @@ function copy-backup-to-remote {
         cd /backup/
         if [[ -z $ZIP_PASSWORD  ]]; then
             echo "Copying ${slug}.tar to ${REMOTE_DIRECTORY} on ${SSH_HOST} using SCP"
-            scp -F "${HOME}/.ssh/config" "${slug}.tar" remote:"${REMOTE_DIRECTORY}"
+            scp -i "${SSH_KEY}" "${slug}.tar" remote:"${REMOTE_DIRECTORY}"
         else
             echo "Copying password-protected ${slug}.zip to ${REMOTE_DIRECTORY} on ${SSH_HOST} using SCP"
             zip -P "$ZIP_PASSWORD" "${slug}.zip" "${slug}".tar
-            scp -F "${HOME}/.ssh/config" "${slug}.zip" remote:"${REMOTE_DIRECTORY}" && rm "${slug}.zip"
+            scp -i "${SSH_KEY}" "${slug}.zip" remote:"${REMOTE_DIRECTORY}" && rm "${slug}.zip"
         fi
     fi
 }
